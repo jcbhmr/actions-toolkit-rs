@@ -17,12 +17,10 @@
 🔨 Functions for downloading and caching tools in GitHub Actions
 
 [actions-github](actions-github) \
-:octocat: Provides an [Octokit.rs] client already setup in the GitHub Actions context
+:octocat: Provides an Octokit.rs client already setup in the GitHub Actions context
 
 [actions-artifact](actions-artifact) \
 💾 Functions to interact with Actions artifacts
 
 [actions-cache](actions-cache) \
 🎯 Functions to cache dependencies and build outputs for GitHub Actions
-
-[actions/toolkit]: https://github.com/actions/toolkit
