@@ -1,13 +1,8 @@
 [workspace]
-members = [
-  "action-*",
-]
+members = ["crates/*"]
+resolver = "2"
 
-[profile.dev]
-opt-level = 0
-debug = 1
-
-# Optimize for size, as actions should be small
+# Optimize for size
 [profile.release]
 lto = true
 strip = true
