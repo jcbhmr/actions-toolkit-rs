@@ -1,10 +1,12 @@
-use std::error::Error;
-use reqwest::blocking::*;
-use std::env;
 use crate::set_secret;
+use reqwest::blocking::*;
+use serde::Deserialize;
+use std::env;
+use std::error::Error;
 
+#[derive(Deserialize)]
 struct TokenResponse {
-    value: Option<String>,
+    pub value: Option<String>,
 }
 
 pub struct OidcClient;
@@ -30,7 +32,7 @@ impl OidcClient {
             id_token_url.push_str(&format!("&audience={audience}"));
         }
         let id_token = OidcClient::get_call(&id_token_url)?;
-        set_secret(id_token);
+        set_secret(&id_token);
         Ok(id_token)
     }
 }

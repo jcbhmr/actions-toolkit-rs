@@ -2,8 +2,8 @@ use std::error::Error;
 use std::process::Command;
 
 struct NameVersion {
-    name: String,
-    version: String,
+    pub name: String,
+    pub version: String,
 }
 
 #[cfg(target_os = "windows")]
