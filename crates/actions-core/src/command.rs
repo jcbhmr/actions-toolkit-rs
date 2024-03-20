@@ -1,8 +1,7 @@
+use crate::utils::to_command_value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Display;
-
-use crate::utils::to_command_value;
 
 pub type CommandProperties = HashMap<String, String>;
 

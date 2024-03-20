@@ -117,3 +117,5 @@ This project really tries to mirror the API and package surface of [actions/tool
 To get started tinkering you can clone this repository and run `cargo test` to see everything happen! 🤩 There's no current root package so you'll need to specify a `--package <package_name>` or `-p <package_name>` argument to some `cargo` commands.
 
 ~~This is a monorepo where each package independently manages its own version. This means that releasing the release & tag semantics are a bit wacky -- instead of a single tag like `v1.0.0` for each version of the entire project there's now N different tags, one for each `actions-*` package, each named according to `${package_name}-${package_version}` convention.~~ Nothing is currently published yet so this doesn't apply. I also want to do some research to see what the convention around monorepo tag naming is.
+
+This repository was originally named "toolkit.rs" but since the organization/user name isn't actions-related ([@jcbhmr](https://github.com/jcbhmr) instead of [@actions](https://github.com/actions)) I added a prefix to clarify the name.

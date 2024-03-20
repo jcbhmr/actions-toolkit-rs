@@ -1,10 +1,9 @@
+use crate::utils::to_command_value;
 use std::error::Error;
 use std::io::Write;
 use std::path::Path;
 use std::{env, fs};
 use uuid::Uuid;
-
-use crate::utils::to_command_value;
 
 pub fn issue_file_command(command: &str, message: Option<String>) -> Result<(), Box<dyn Error>> {
     let file_path = env::var(format!("GITHUB_{command}"))?;

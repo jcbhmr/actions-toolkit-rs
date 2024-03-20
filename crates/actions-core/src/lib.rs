@@ -8,6 +8,9 @@ pub mod platform;
 mod summary;
 mod utils;
 
+pub use crate::path_utils::{to_platform_path, to_posix_path, to_win32_path};
+pub use crate::summary::{MARKDOWN_SUMMARY, SUMMARY};
+use crate::utils::to_command_value;
 use command::{issue, issue_command, CommandProperties};
 use file_command::{issue_file_command, prepare_key_value_message};
 use oidc_utils::OidcClient;
@@ -17,10 +20,6 @@ use std::error::Error;
 use std::io::Write;
 use std::{env, fs, process};
 use utils::to_command_properties;
-
-pub use crate::path_utils::{to_platform_path, to_posix_path, to_win32_path};
-pub use crate::summary::{MARKDOWN_SUMMARY, SUMMARY};
-use crate::utils::to_command_value;
 
 pub struct InputOptions {
     pub required: Option<bool>,
