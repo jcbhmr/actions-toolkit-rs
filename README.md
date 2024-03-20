@@ -15,6 +15,7 @@
 - [ ] Each package has its own set of examples
 - [ ] Most things have good documentation
 - [ ] [configure-executable-action](https://github.com/jcbhmr/configure-executable-action)
+- [ ] [configure-wasmtime-action](https://github.com/jcbhmr/configure-wasmtime-action)
 - [ ] [hello-world-rust-action](https://github.com/jcbhmr/hello-world-rust-action)
 
 # GitHub Actions Toolkit for Rust
@@ -36,11 +37,12 @@ actions_core::set_output("hash", hash);
 <p align=center>
   <a href="https://docs.rs/actions-core/latest/actions_core">docs.rs/actions-core</a>
   | <a href="https://github.com/jcbhmr/hello-world-rust-action">hello-world-rust-action</a>
-  | <a href="https://github.com/jcbhmr/configure-executable-action">jcbhmr/configure-executable-action</a>
   | <a href="https://github.com/actions/toolkit">Official actions/toolkit</a>
 </p>
 
 😵 Don't know where to start? Read the [🦀 How to write your GitHub Actions in Rust](https://dev.to/#) post. 🚀
+
+<table align=center><td>
 
 - **[actions-core](./crates/actions-core):** ✅ Get inputs, set outputs, and other basic operations for GitHub Actions
 - **[actions-exec](./crates/actions-exec):** 🏃‍♂️ Easier interface for running subprocesses in GitHub Actions
@@ -53,13 +55,15 @@ actions_core::set_output("hash", hash);
 - **[actions-cache](./crates/actions-cache):** 🎯 Functions to cache dependencies and build outputs for GitHub Actions
 - **[actions-attest](./crates/actions-attest):** 🔏 Functions to write attestations for workflow artifacts
 
+</table>
+
 ## Installation
 
 ![Cargo](https://img.shields.io/static/v1?style=for-the-badge&message=Cargo&color=e6b047&logo=Rust&logoColor=000000&label=)
 
 Your reading the root monorepo readme. 😉 To install a specific `actions-*` package just click one of the links above ☝ and install that package. 🚀
 
-You'll probably also want to [create an `action.yml` manifest and use configure-executable-action](https://github.com/jcbhmr/configure-executable-action) to manage the glue that will invoke your `target/release/*` executable.
+You'll probably also want to [create an `action.yml` manifest and use configure-executable-action](https://github.com/jcbhmr/configure-executable-action) to manage the glue that will invoke your compiled executable.
 
 ## Usage
 
@@ -76,7 +80,10 @@ use chrono::prelude::*;
 fn main() {
   let result = || -> Result<(), Box<dyn Error>> {
     // The `who-to-greet` input is defined in action metadata file
-    let who_to_greet = core::get_input_opts("who-to-greet", {})?;
+    let who_to_greet = core::get_input_with_options("who-to-greet", GetInputOptions {
+      required: true,
+      ...Default::default()
+    })?;
     core::info!("Hello, {who_to_greet}!");
 
     // Get the current time and set it as an output
@@ -87,7 +94,7 @@ fn main() {
     let json = serde_json::to_string_pretty(github::context::payload)?;
     core::info!("The event payload: {json}");
     Ok(())
-  }()
+  }();
   if let Err(error) = result {
     core::set_failed!("{error}");
   }
@@ -96,7 +103,7 @@ fn main() {
 
 🔰 Based on the [hello-world-javascript-action](https://github.com/actions/hello-world-javascript-action) code example.
 
-🤖 Check out [configure-executable-action](https://github.com/jcbhmr/configure-executable-action) for an easy way to configure and release your `target/release/*` executable! 😉
+💡 You'll probably want to use [configure-executable-action](https://github.com/jcbhmr/downlevel-executable-action) to manage the glue code to properly run your compiled executable.
 
 ## Alternatives
 
