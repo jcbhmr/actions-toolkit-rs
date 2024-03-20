@@ -32,18 +32,25 @@ actions_core::info!("Hello, {name}!");
 // 🐙🐱
 let token = actions_core::get_input("token")?;
 let octokit = actions_github::get_octokit(token)?;
-if *actions_github::context::EVENT_NAME == "push" {
-  println!("{} pushed!", actions_github::context::actor);
+let push = match *actions_github::CONTEXT.payload {
+  WebhookPayload::Push(x) => x,
+  _ => actions_core::set_failed!("🤷‍♂️"),
 }
+let actor = *actions_github::CONTEXT.actor;
+let repo = payload.repository.full_name;
+println!("{actor} pushed to {repo}");
 
 // 🔨
 let url = "https://example.org/tool.tgz";
 let path = actions_tool_cache::download_tool(url)?;
 let path = actions_tool_cache::extract_tar(path)?;
+println!("{url} extracted to {path}");
 
 // 🍦
-let hash = actions_glob::hash_files("*.json")?;
 let files = actions_glob::create("**/*.rs")?.glob()?;
+println!("The files are {files:?}");
+let hash = actions_glob::hash_files("*.json")?;
+println!("Config hash is {hash}");
 ```
 
 </table>
