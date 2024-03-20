@@ -25,13 +25,25 @@
 <table align=center><td>
 
 ```rs
+// ✅
 let name = actions_core::get_input("name")?;
 actions_core::info!("Hello, {name}!");
 
-let 
+// 🐙🐱
+let token = actions_core::get_input("token")?;
+let octokit = actions_github::get_octokit(token)?;
+if *actions_github::context::EVENT_NAME == "push" {
+  println!("{} pushed!", actions_github::context::actor);
+}
 
+// 🔨
+let url = "https://example.org/tool.tgz";
+let path = actions_tool_cache::download_tool(url)?;
+let path = actions_tool_cache::extract_tar(path)?;
+
+// 🍦
 let hash = actions_glob::hash_files("*.json")?;
-actions_core::set_output("hash", hash);
+let files = actions_glob::create("**/*.rs")?.glob()?;
 ```
 
 </table>
