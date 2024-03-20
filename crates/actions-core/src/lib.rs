@@ -59,24 +59,9 @@
 //! ![Docs.rs](https://img.shields.io/static/v1?style=for-the-badge&message=Docs.rs&color=000000&logo=Docs.rs&logoColor=FFFFFF&label=)
 //!
 //! This project is part of the [actions-toolkit.rs](https://github.com/jcbhmr/actions-toolkit.rs) project.
-use std::collections::HashMap;
-use std::error::Error;
-
-/// This struct is used by [get_input_with_options], [get_multiline_input_with_options], and [get_boolean_input_with_options]. The normal [get_input], [get_multiline_input], and [get_boolean_input] functions are also available which do not use these options and assume the default values.
-/// 
-/// This struct implements the [Default] trait so that you can use `..Default::default()` to use the default values. But it only has two feilds so you may find this pattern a bit overkill. 🤷‍♀️
-/// 
-/// ```rs
-/// // We're using `?` to immediately bubble up the error.
-/// let name = core::get_input_with_options("name", core::InputOptions {
-///   required: true,
-///   ..Default::default()
-/// })?;
-/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct InputOptions {
-    /// Whether or not the input is required. When this is set to `true` and the input is not provided, the [get_input_with_options] or similar function will return an [Error]-ed [Result]. This defaults to `false`.
     pub required: bool,
-    /// Runs `.trim()` on the input if set to `true`. This defaults to `true`.
     pub trim_whitespace: bool,
 }
 
@@ -89,258 +74,428 @@ impl Default for InputOptions {
     }
 }
 
-/// This value only has function in the JavaScript implementation to `process.exitCode = $X` in `core.setFailed()`. There's no equivalent of `process.exitCode = $X` in Rust.
 #[deprecated]
 pub enum ExitCode {
     Success = 0,
     Failure = 1,
 }
 
-/// Used with [error_with_properties], [warning_with_properties], and [notice_with_properties] to link a message to a specific file or section of a file. If this is specified, the message will show up in the GitHub web UI when browsing that file in a Pull Request. This annotation information is particularly useful when printing compiler or build tool messages. All of the fields **are optional** even though they all need a concrete value. If the value is "falsey" (`0` or `""``) then the value won't be included in the message log and acts as though it were an [Option].
-/// 
-/// ```rs
-/// core::error_with_properties(format!("Oh no! {error:?}"), core::AnnotationProperties {
-///   title: "Compiler error",
-///   file: "src/main.rs",
-///   start_line: 1,
-///   end_line: 5,
-///   ..Default::default()
-/// });
-/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct AnnotationProperties<'a> {
-    /// Pseudo-[Option] where `""` is [None] and any other non-zero length string is [Some]. This string will show up as bold text on the GitHub Actions summary page for the workflow run.
     pub title: &'a str,
-    /// Pseudo-[Option] where `""` is [None] and any other non-zero length string is [Some]. If this is specified then the message is considered to be tied to a specific file. This field should be specified if `start_line` and `stop_line` are specified. If not it's a soft error.
     pub file: &'a str,
-    /// Pseudo-[Option] where `0` is [None] and any other non-zero integer is [Some]. This field should be specified if `file` is specified. If not it's a soft error.
     pub start_line: u32,
-    /// Pseudo-[Option] where `0` is [None] and any other non-zero integer is [Some]. This field should be specified if `file` is specified. If not it's a soft error.
     pub end_line: u32,
-    /// Pseudo-[Option] where `0` is [None] and any other non-zero integer is [Some]. This field should be specified if `stop_column` is specified. If not it's a soft error.
     pub start_column: u32,
-    /// Pseudo-[Option] where `0` is [None] and any other non-zero integer is [Some]. This field should be specified if `stop_column` is specified. If not it's a soft error.
     pub end_column: u32,
 }
 
-pub fn export_variable(name: &str, value: Option<String>) -> Result<(), Box<dyn Error>> {
-    let converted_value = to_command_value(value);
-    env::set_var(name, converted_value);
-    let file_path = env::var("GITHUB_ENV").unwrap_or_default();
-    if !file_path.is_empty() {
-        issue_file_command("ENV", Some(prepare_key_value_message(name, value)?))?;
-    } else {
-        issue_command(
-            "set-env",
-            CommandProperties::from([("name".into(), name.into())]),
-            Some(converted_value),
-        )?;
-    }
-    Ok(())
-}
-
-pub fn set_secret(secret: &str) -> Result<(), Box<dyn Error>> {
-    issue_command("add-mask", CommandProperties::new(), Some(secret))?;
-    Ok(())
-}
-
-pub fn add_path(input_path: &str) -> Result<(), Box<dyn Error>> {
-    let file_path = env::var("GITHUB_PATH").unwrap_or_default();
-    if !file_path.is_empty() {
-        issue_file_command("PATH", Some(input_path))?;
-    } else {
-        issue_command("add-path", CommandProperties::new(), Some(input_path))?;
-    }
-    #[cfg(target_os = "windows")]
-    let path_delimiter = ";";
-    #[cfg(not(target_os = "windows"))]
-    let path_delimiter = ":";
-    env::set_var(
-        "PATH",
-        format!("{}{path_delimiter}{input_path}", env::var("PATH")?),
-    );
-    Ok(())
-}
-
-pub fn get_input(name: &str, options: Option<&InputOptions>) -> Result<String, Box<dyn Error>> {
-    let value =
-        env::var(format!("INPUT_{}", name.replace(' ', "_").to_uppercase())).unwrap_or_default();
-    if let Some(options) = options {
-        if options.required.unwrap_or_default() && value.is_empty() {
-            return Err(format!("input {name} required").into());
+impl AnnotationProperties<'_> {
+    fn to_string(&self) -> String {
+        let mut properties = Vec::new();
+        if !self.title.is_empty() {
+            properties.push(format!("title={}", encode_command_property(self.title)));
         }
-        if options.trim_whitespace.is_some_and(|x| x == false) {
-            return Ok(value);
+        if !self.file.is_empty() {
+            properties.push(format!("file={}", encode_command_property(self.file)));
         }
+        if self.start_line != 0 {
+            properties.push(format!("line={}", self.start_line));
+        }
+        if self.end_line != 0 {
+            properties.push(format!("endLine={}", self.end_line));
+        }
+        if self.start_column != 0 {
+            properties.push(format!("col={}", self.start_column));
+        }
+        if self.end_column != 0 {
+            properties.push(format!("endCol={}", self.end_column));
+        }
+        properties.join(",")
     }
-    Ok(value.trim().into())
 }
 
-pub fn get_multiline_input(
-    name: &str,
-    options: Option<&InputOptions>,
-) -> Result<Vec<String>, Box<dyn Error>> {
-    let inputs = get_input(name, options)?
-        .split("\n")
-        .map(|x| x.into())
-        .collect::<Vec<String>>();
-    if options.is_some_and(|options| options.trim_whitespace.is_some_and(|x| x == false)) {
-        return Ok(inputs);
-    }
-    Ok(inputs.iter().map(|x| x.trim().into()).collect())
+fn encode_command_property(property: &str) -> String {
+    property
+        .replace("%", "%25")
+        .replace("\r", "%0D")
+        .replace("\n", "%0A")
+        .replace(":", "%3A")
+        .replace(",", "%2C")
 }
 
-pub fn get_boolean_input(
-    name: &str,
-    options: Option<&InputOptions>,
-) -> Result<bool, Box<dyn Error>> {
-    let true_value = vec!["true", "True", "TRUE"];
-    let false_value = vec!["false", "False", "FALSE"];
-    let value = get_input(name, options)?;
-    if true_value.contains(&value.as_str()) {
-        return Ok(true);
-    }
-    if false_value.contains(&value.as_str()) {
-        return Ok(false);
-    }
-    Err(format!("{name} not `true | True | TRUE | false | False | FALSE`").into())
+fn encode_command_data(data: &str) -> String {
+    data
+        .replace("%", "%25")
+        .replace("\r", "%0D")
+        .replace("\n", "%0A")
 }
 
-pub fn set_output(name: &str, value: Option<String>) -> Result<(), Box<dyn Error>> {
-    let file_path = env::var("GITHUB_OUTPUT").unwrap_or_default();
-    if !file_path.is_empty() {
-        issue_file_command("OUTPUT", Some(prepare_key_value_message(name, value)?))?;
+pub fn export_variable(name: impl AsRef<str>, value: impl std::fmt::Display) {
+    let name = name.as_ref();
+    let value = value.to_string();
+    let github_env = std::env::var("GITHUB_ENV").unwrap_or_default();
+    if github_env.is_empty() {
+        println!(
+            "::set-env name={}::{}",
+            encode_command_property(name),
+            encode_command_data(&value)
+        );
     } else {
-        println!();
-        issue_command(
-            "set-output",
-            CommandProperties::from([("name".into(), name.into())]),
-            Some(to_command_value(value)),
-        )?;
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(github_env)
+            .unwrap();
+        let delimiter = uuid::Uuid::new_v4();
+        use std::io::Write;
+        writeln!(file, "{name}<<{delimiter}\n{value}\n{delimiter}").unwrap();
     }
-    Ok(())
 }
 
-pub fn set_command_echo(enabled: bool) -> Result<(), Box<dyn Error>> {
-    issue(
-        "echo",
-        Some(if enabled { "on".into() } else { "off".into() }),
-    )?;
-    Ok(())
+pub fn set_secret(secret: impl AsRef<str>) {
+    let secret = secret.as_ref();
+    println!("::add-mask::{}", encode_command_data(secret));
 }
 
-pub fn set_failed(message: Box<dyn Error>) -> Result<(), Box<dyn Error>> {
-    error(message, None);
-    Ok(())
+pub fn add_path(input_path: impl AsRef<str>) {
+    let input_path = input_path.as_ref();
+    let github_path = std::env::var("GITHUB_PATH").unwrap_or_default();
+    if github_path.is_empty() {
+        println!("::add-path::{}", encode_command_data(input_path));
+    } else {
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(github_path)
+            .unwrap();
+        use std::io::Write;
+        writeln!(file, "{input_path}").unwrap();
+    }
+    let path = std::env::var("PATH").unwrap();
+    const PATH_DELIMITER: &str = if cfg!(windows) { ";" } else { ":" };
+    std::env::set_var("PATH", format!("{input_path}{PATH_DELIMITER}{path}"));
+}
+
+pub fn get_input(name: impl AsRef<str>) -> String {
+    get_input_with_options(name, &InputOptions::default()).unwrap()
+}
+
+pub fn get_input_with_options(
+    name: impl AsRef<str>,
+    options: &InputOptions,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let name = name.as_ref();
+    let name_env = name.replace(" ", "_").to_uppercase();
+    let value = std::env::var(format!("INPUT_{name_env}")).unwrap_or_default();
+    if options.required && value.is_empty() {
+        return Err(format!("{name} is required").into());
+    }
+    if options.trim_whitespace {
+        Ok(value.trim().into())
+    } else {
+        Ok(value)
+    }
+}
+
+pub fn get_multiline_input(name: impl AsRef<str>) -> Vec<String> {
+    get_multiline_input_with_options(name, &InputOptions::default()).unwrap()
+}
+
+pub fn get_multiline_input_with_options(
+    name: impl AsRef<str>,
+    options: &InputOptions,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let value = get_input_with_options(name, options)?;
+    let lines: Vec<String> = value
+        .lines()
+        .filter_map(|x| if x.is_empty() { None } else { Some(x.into()) })
+        .collect();
+    if options.trim_whitespace {
+        Ok(lines.into_iter().map(|x| x.trim().into()).collect())
+    } else {
+        Ok(lines)
+    }
+}
+
+pub fn get_boolean_input(name: impl AsRef<str>) -> bool {
+    get_boolean_input_with_options(name, &InputOptions::default()).unwrap()
+}
+
+pub fn get_boolean_input_with_options(
+    name: impl AsRef<str>,
+    options: &InputOptions,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let name = name.as_ref();
+    let value = get_input_with_options(name, options)?;
+    const TRUE_VALUES: &[&str] = &["true", "True", "TRUE"];
+    const FALSE_VALUES: &[&str] = &["false", "False", "FALSE"];
+    if TRUE_VALUES.contains(&value.as_str()) {
+        Ok(true)
+    } else if FALSE_VALUES.contains(&value.as_str()) {
+        Ok(false)
+    } else {
+        Err(format!("{name} is not a valid boolean").into())
+    }
+}
+
+pub fn set_output(name: impl AsRef<str>, value: impl std::fmt::Display) {
+    let name = name.as_ref();
+    let value = value.to_string();
+    let github_output = std::env::var("GITHUB_OUTPUT").unwrap_or_default();
+    if github_output.is_empty() {
+        println!("::set-output name={}::{}", encode_command_property(name), encode_command_data(&value));
+    } else {
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(github_output)
+            .unwrap();
+        let delimiter = uuid::Uuid::new_v4();
+        use std::io::Write;
+        writeln!(file, "{name}<<{delimiter}\n{value}\n{delimiter}").unwrap();
+    }
+}
+
+pub fn set_command_echo(enabled: bool) {
+    println!("::echo::{}", if enabled { "on" } else { "off" });
+}
+
+pub fn set_failed(message: impl std::fmt::Display) -> ! {
+    error(message);
+    panic!();
 }
 
 pub fn is_debug() -> bool {
-    env::var("RUNNER_DEBUG").is_ok_and(|x| x == "1")
+    std::env::var("RUNNER_DEBUG").is_ok_and(|x| x == "1")
 }
 
-pub fn debug(message: &str) -> Result<(), Box<dyn Error>> {
-    issue_command("debug", CommandProperties::new(), Some(message.into()))?;
-    Ok(())
+pub fn debug(message: impl std::fmt::Display) {
+    debug_with_properties(message, &AnnotationProperties::default());
 }
 
-pub fn error(
-    message: Box<dyn Error>,
-    properties: Option<AnnotationProperties>,
-) -> Result<(), Box<dyn Error>> {
-    let properties = properties.unwrap_or(AnnotationProperties {
-        title: None,
-        file: None,
-        start_line: None,
-        end_line: None,
-        start_column: None,
-        end_column: None,
-    });
-    issue_command(
-        "error",
-        to_command_properties(properties),
-        Some(format!("{message}")),
-    );
-    Ok(())
+pub fn debug_with_properties(
+    message: impl std::fmt::Display,
+    properties: &AnnotationProperties,
+) {
+    let message = message.to_string();
+    println!("::debug {}::{}", properties.to_string(), encode_command_data(&message));
 }
 
-pub fn warning(
-    message: Box<dyn Error>,
-    properties: Option<AnnotationProperties>,
-) -> Result<(), Box<dyn Error>> {
-    let properties = properties.unwrap_or(AnnotationProperties {
-        title: None,
-        file: None,
-        start_line: None,
-        end_line: None,
-        start_column: None,
-        end_column: None,
-    });
-    issue_command(
-        "warning",
-        to_command_properties(properties),
-        Some(format!("{message}")),
-    );
-    Ok(())
+pub fn error(message: impl std::fmt::Display) {
+    error_with_properties(message, &AnnotationProperties::default());
 }
 
-pub fn notice(
-    message: Box<dyn Error>,
-    properties: Option<AnnotationProperties>,
-) -> Result<(), Box<dyn Error>> {
-    let properties = properties.unwrap_or(AnnotationProperties {
-        title: None,
-        file: None,
-        start_line: None,
-        end_line: None,
-        start_column: None,
-        end_column: None,
-    });
-    issue_command(
-        "notice",
-        to_command_properties(properties),
-        Some(format!("{message}")),
-    );
-    Ok(())
+pub fn error_with_properties(
+    message: impl std::fmt::Display,
+    properties: &AnnotationProperties,
+) {
+    let message = message.to_string();
+    println!("::error {}::{}", properties.to_string(), encode_command_data(&message));
 }
 
-pub fn info(message: &str) {
+pub fn warning(message: impl std::fmt::Display) {
+    warning_with_properties(message, &AnnotationProperties::default());
+}
+
+pub fn warning_with_properties(
+    message: impl std::fmt::Display,
+    properties: &AnnotationProperties,
+) {
+    let message = message.to_string();
+    println!("::warning {}::{}", properties.to_string(), encode_command_data(&message));
+}
+
+pub fn notice(message: impl std::fmt::Display) {
+    notice_with_properties(message, &AnnotationProperties::default());
+}
+
+pub fn notice_with_properties(
+    message: impl std::fmt::Display,
+    properties: &AnnotationProperties,
+) {
+    let message = message.to_string();
+    println!("::notice {}::{}", properties.to_string(), encode_command_data(&message));
+}
+
+pub fn info(message: impl std::fmt::Display) {
     println!("{message}");
 }
 
-pub fn start_group(name: &str) -> Result<(), Box<dyn Error>> {
-    issue("group", Some(name.into()))?;
-    Ok(())
+pub fn start_group(name: impl AsRef<str>) {
+    let name = name.as_ref();
+    println!("::group::{}", encode_command_data(name));
 }
 
-pub fn end_group() -> Result<(), Box<dyn Error>> {
-    issue("endgroup", None)?;
-    Ok(())
+pub fn end_group() {
+    println!("::endgroup::");
 }
 
-pub fn group<T, F: FnOnce() -> T>(name: &str, f: F) -> Result<T, Box<dyn Error>> {
-    start_group(name)?;
-    let result = f();
-    end_group()?;
-    Ok(result)
-}
-
-pub fn save_state(name: &str, value: Option<String>) -> Result<(), Box<dyn Error>> {
-    let file_path = env::var("GITHUB_STATE").unwrap_or_default();
-    if !file_path.is_empty() {
-        issue_file_command("STATE", Some(prepare_key_value_message(name, value)?))?;
-    } else {
-        issue_command(
-            "save-state",
-            CommandProperties::from([("name".into(), name.into())]),
-            Some(to_command_value(value)),
-        )?;
+pub fn group<T, F: FnOnce() -> T>(name: impl AsRef<str>, f: F) -> T {
+    // `drop()` still runs even if `f()` panics.
+    struct GroupResource;
+    impl Drop for GroupResource {
+        fn drop(&mut self) {
+            end_group();
+        }
     }
-    Ok(())
+    start_group(name);
+    let _group = GroupResource{};
+    f()
 }
 
-pub fn get_state(name: &str) -> Result<String, Box<dyn Error>> {
-    Ok(env::var(format!("STATE_{name}")).unwrap_or_default())
+pub fn save_state(name: impl AsRef<str>, value: impl std::fmt::Display) {
+    let name = name.as_ref();
+    let value = value.to_string();
+    let github_state = std::env::var("GITHUB_STATE").unwrap_or_default();
+    if github_state.is_empty() {
+        println!("::save-state name={}::{}", encode_command_property(name), encode_command_data(&value));
+    } else {
+        let mut file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(github_state)
+            .unwrap();
+        let delimiter = uuid::Uuid::new_v4();
+        use std::io::Write;
+        writeln!(file, "{name}<<{delimiter}\n{value}\n{delimiter}").unwrap();
+    }
 }
 
-pub fn get_id_token(audience: Option<String>) -> Result<String, Box<dyn Error>> {
-    Ok(OidcClient::get_id_token(audience)?)
+pub fn get_state(name: impl AsRef<str>) -> String {
+    let name = name.as_ref();
+    std::env::var(format!("STATE_{name}")).unwrap_or_default()
 }
+
+pub fn get_id_token() -> Result<String, Box<dyn std::error::Error>> {
+    get_id_token_with_audience("")
+}
+
+pub fn get_id_token_with_audience(audience: impl AsRef<str>) -> Result<String, Box<dyn std::error::Error>> {
+    #[derive(serde::Deserialize)]
+    struct TokenResponse {
+        value: String,
+    }
+    let audience = audience.as_ref();
+    let mut url = std::env::var("ACTIONS_ID_TOKEN_REQUEST_URL")?;
+    if !audience.is_empty() {
+        url.push_str(&format!("&audience={audience}"));
+    }
+    let response = reqwest::blocking::get(url)?;
+    let json: TokenResponse = response.json()?;
+    let id_token = json.value;
+    set_secret(&id_token);
+    Ok(id_token)
+}
+
+pub fn to_posix_path(path: &str) -> String {
+    path.replace("\\", "/")
+}
+
+pub fn to_win32_path(path: &str) -> String {
+    path.replace("/", "\\")
+}
+
+pub fn to_platform_path(path: &str) -> String {
+    if cfg!(windows) {
+        to_win32_path(path)
+    } else {
+        to_posix_path(path)
+    }
+}
+
+pub mod platform {
+    #[cfg(target_os = "windows")]
+    fn get_windows_info() -> Result<(String, String), Box<dyn std::error::Error>> {
+        let version = Command::new("powershell")
+            .arg("-command")
+            .arg("(Get-CimInstance -ClassName Win32_OperatingSystem).Version")
+            .output()?
+            .stdout;
+        let version = String::from_utf8(version)?;
+        let name = Command::new("powershell")
+            .arg("-command")
+            .arg("(Get-CimInstance -ClassName Win32_OperatingSystem).Caption")
+            .output()?
+            .stdout;
+        let name = String::from_utf8(name)?;
+        Ok((name.trim().to_string(), version.trim().to_string()))
+    }
+
+    #[cfg(target_os = "macos")]
+    fn get_macos_info() -> Result<(String, String), Box<dyn std::error::Error>> {
+        let version = Command::new("sw_vers")
+            .arg("-productVersion")
+            .output()?
+            .stdout;
+        let version = String::from_utf8(version)?;
+        let name = Command::new("sw_vers").arg("-productName").output()?.stdout;
+        let name = String::from_utf8(name)?;
+        Ok((name.trim().to_string(), version.trim().to_string()))
+    }
+
+    #[cfg(target_os = "linux")]
+    fn get_linux_info() -> Result<(String, String), Box<dyn std::error::Error>> {
+        let name = std::process::Command::new("lsb_release").arg("-is").output()?.stdout;
+        let name = String::from_utf8(name)?;
+        let version = std::process::Command::new("lsb_release").arg("-rs").output()?.stdout;
+        let version = String::from_utf8(version)?;
+        Ok((name.trim().to_string(), version.trim().to_string()))
+    }
+
+    #[cfg(target_os = "windows")]
+    pub const PLATFORM: &str = "win32";
+    #[cfg(target_os = "macos")]
+    pub const PLATFORM: &str = "darwin";
+    #[cfg(target_os = "linux")]
+    pub const PLATFORM: &str = "linux";
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    compile_error!("unsupported target_os");
+
+    #[cfg(target_arch = "x86_64")]
+    pub const ARCH: &str = "x86_64";
+    #[cfg(target_arch = "x86")]
+    pub const ARCH: &str = "x86";
+    #[cfg(target_arch = "aarch64")]
+    pub const ARCH: &str = "arm64";
+    #[cfg(target_arch = "arm")]
+    pub const ARCH: &str = "arm";
+    #[cfg(not(any(
+        target_arch = "x86_64",
+        target_arch = "x86",
+        target_arch = "aarch64",
+        target_arch = "arm"
+    )))]
+    compile_error!("unsupported target_arch");
+
+    pub const IS_WINDOWS: bool = cfg!(target_os = "windows");
+    pub const IS_MACOS: bool = cfg!(target_os = "macos");
+    pub const IS_LINUX: bool = cfg!(target_os = "linux");
+
+    pub struct Details {
+        pub name: String,
+        pub platform: String,
+        pub arch: String,
+        pub version: String,
+        pub is_windows: bool,
+        pub is_macos: bool,
+        pub is_linux: bool,
+    }
+
+    pub fn get_details() -> Result<Details, Box<dyn std::error::Error>> {
+        #[cfg(target_os = "windows")]
+        let (name, version) = get_windows_info()?;
+        #[cfg(target_os = "macos")]
+        let (name, version) = get_macos_info()?;
+        #[cfg(target_os = "linux")]
+        let (name, version) = get_linux_info()?;
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        compile_error!("unsupported target_os");
+        Ok(Details {
+            name,
+            platform: PLATFORM.to_string(),
+            arch: ARCH.to_string(),
+            version,
+            is_windows: IS_WINDOWS,
+            is_macos: IS_MACOS,
+            is_linux: IS_LINUX,
+        })
+    }
+}
+
