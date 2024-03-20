@@ -1,43 +1,125 @@
-//! [@actions/core](https://www.npmjs.com/package/@actions/core) for Rust projects.
-
-mod command;
-mod file_command;
-mod oidc_utils;
-mod path_utils;
-pub mod platform;
-mod summary;
-mod utils;
-
-pub use crate::path_utils::{to_platform_path, to_posix_path, to_win32_path};
-pub use crate::summary::{MARKDOWN_SUMMARY, SUMMARY};
-use crate::utils::to_command_value;
-use command::{issue, issue_command, CommandProperties};
-use file_command::{issue_file_command, prepare_key_value_message};
-use oidc_utils::OidcClient;
-use std::any::Any;
+//! ✅ Get inputs, set outputs, and other basic operations for GitHub Actions
+//!
+//! <table align=center><td>
+//!
+//! ```rs
+//! let name = core::get_input_with_options("name", core::GetInputOptions {
+//!    required: true,
+//!   ..Default::default()
+//! })?;
+//! let favorite_color = core::get_input("favorite-color")?;
+//! core::info!("Hello {name}!");
+//! let message = format!("I like {favorite_color} too!");
+//! core::set_output("message", message);
+//! ```
+//!
+//! </table>
+//!
+//! 👀 Looking for more GitHub Actions crates? Check out [the actions-toolkit.rs](https://github.com/jcbhmr/actions-toolkit.rs) project.
+//!
+//! ## Installation
+//!
+//! ```sh
+//! cargo add actions-core2
+//! ```
+//!
+//! ⚠️ Use `use actions_core` in your Rust code. The package name differs from the crate name.
+//!
+//! ## Usage
+//!
+//! ![Rust](https://img.shields.io/static/v1?style=for-the-badge&message=Rust&color=000000&logo=Rust&logoColor=FFFFFF&label=)
+//!
+//! ```rs
+//! use actions_core as core;
+//! use std::error::Error;
+//!
+//! fn main() {
+//!   let result = || -> Result<(), Box<dyn Error>> {
+//!     let name = core::get_input_with_options("name", core::InputOptions {
+//!         required: true,
+//!         ..Default::default()
+//!     })?;
+//!     let favorite_color = core::get_input("favorite-color")?;
+//!     core::info!("Hello {name}!");
+//!     core::set_output("message", "Wow! Rust is awesome!");
+//!     Ok(())
+//!   }();
+//!   if let Err(error) = result {
+//!     core::set_failed!("{error}");
+//!   }
+//! }
+//! ```
+//!
+//! 🤔 But how do I actually use the generated executable in my `action.yml`? Check out [configure-executable-action](https://github.com/jcbhmr/configure-executable-action)!
+//!
+//! ## Development
+//!
+//! ![Rust](https://img.shields.io/static/v1?style=for-the-badge&message=Rust&color=000000&logo=Rust&logoColor=FFFFFF&label=)
+//! ![Cargo](https://img.shields.io/static/v1?style=for-the-badge&message=Cargo&color=e6b047&logo=Rust&logoColor=000000&label=)
+//! ![Docs.rs](https://img.shields.io/static/v1?style=for-the-badge&message=Docs.rs&color=000000&logo=Docs.rs&logoColor=FFFFFF&label=)
+//!
+//! This project is part of the [actions-toolkit.rs](https://github.com/jcbhmr/actions-toolkit.rs) project.
 use std::collections::HashMap;
 use std::error::Error;
-use std::io::Write;
-use std::{env, fs, process};
-use utils::to_command_properties;
 
+/// This struct is used by [get_input_with_options], [get_multiline_input_with_options], and [get_boolean_input_with_options]. The normal [get_input], [get_multiline_input], and [get_boolean_input] functions are also available which do not use these options and assume the default values.
+/// 
+/// This struct implements the [Default] trait so that you can use `..Default::default()` to use the default values. But it only has two feilds so you may find this pattern a bit overkill. 🤷‍♀️
+/// 
+/// ```rs
+/// // We're using `?` to immediately bubble up the error.
+/// let name = core::get_input_with_options("name", core::InputOptions {
+///   required: true,
+///   ..Default::default()
+/// })?;
+/// ```
 pub struct InputOptions {
-    pub required: Option<bool>,
-    pub trim_whitespace: Option<bool>,
+    /// Whether or not the input is required. When this is set to `true` and the input is not provided, the [get_input_with_options] or similar function will return an [Error]-ed [Result]. This defaults to `false`.
+    pub required: bool,
+    /// Runs `.trim()` on the input if set to `true`. This defaults to `true`.
+    pub trim_whitespace: bool,
 }
 
+impl Default for InputOptions {
+    fn default() -> Self {
+        Self {
+            required: false,
+            trim_whitespace: true,
+        }
+    }
+}
+
+/// This value only has function in the JavaScript implementation to `process.exitCode = $X` in `core.setFailed()`. There's no equivalent of `process.exitCode = $X` in Rust.
+#[deprecated]
 pub enum ExitCode {
     Success = 0,
     Failure = 1,
 }
 
+/// Used with [error_with_properties], [warning_with_properties], and [notice_with_properties] to link a message to a specific file or section of a file. If this is specified, the message will show up in the GitHub web UI when browsing that file in a Pull Request. This annotation information is particularly useful when printing compiler or build tool messages. All of the fields **are optional** even though they all need a concrete value. If the value is "falsey" (`0` or `""``) then the value won't be included in the message log and acts as though it were an [Option].
+/// 
+/// ```rs
+/// core::error_with_properties(format!("Oh no! {error:?}"), core::AnnotationProperties {
+///   title: "Compiler error",
+///   file: "src/main.rs",
+///   start_line: 1,
+///   end_line: 5,
+///   ..Default::default()
+/// });
+/// ```
 pub struct AnnotationProperties<'a> {
-    pub title: Option<&'a str>,
-    pub file: Option<&'a str>,
-    pub start_line: Option<u32>,
-    pub end_line: Option<u32>,
-    pub start_column: Option<u32>,
-    pub end_column: Option<u32>,
+    /// Pseudo-[Option] where `""` is [None] and any other non-zero length string is [Some]. This string will show up as bold text on the GitHub Actions summary page for the workflow run.
+    pub title: &'a str,
+    /// Pseudo-[Option] where `""` is [None] and any other non-zero length string is [Some]. If this is specified then the message is considered to be tied to a specific file. This field should be specified if `start_line` and `stop_line` are specified. If not it's a soft error.
+    pub file: &'a str,
+    /// Pseudo-[Option] where `0` is [None] and any other non-zero integer is [Some]. This field should be specified if `file` is specified. If not it's a soft error.
+    pub start_line: u32,
+    /// Pseudo-[Option] where `0` is [None] and any other non-zero integer is [Some]. This field should be specified if `file` is specified. If not it's a soft error.
+    pub end_line: u32,
+    /// Pseudo-[Option] where `0` is [None] and any other non-zero integer is [Some]. This field should be specified if `stop_column` is specified. If not it's a soft error.
+    pub start_column: u32,
+    /// Pseudo-[Option] where `0` is [None] and any other non-zero integer is [Some]. This field should be specified if `stop_column` is specified. If not it's a soft error.
+    pub end_column: u32,
 }
 
 pub fn export_variable(name: &str, value: Option<String>) -> Result<(), Box<dyn Error>> {
