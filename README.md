@@ -28,6 +28,8 @@
 let name = actions_core::get_input("name")?;
 actions_core::info!("Hello, {name}!");
 
+let 
+
 let hash = actions_glob::hash_files("*.json")?;
 actions_core::set_output("hash", hash);
 ```
@@ -40,7 +42,7 @@ actions_core::set_output("hash", hash);
   | <a href="https://github.com/actions/toolkit">Official actions/toolkit</a>
 </p>
 
-<table align=center><td>
+😵 Don't know where to start? Read the [🦀 How to write your GitHub Actions in Rust](https://dev.to/#) post. 🚀
 
 - **[actions-core](./crates/actions-core):** ✅ Get inputs, set outputs, and other basic operations for GitHub Actions
 - **[actions-exec](./crates/actions-exec):** 🏃‍♂️ Easier interface for running subprocesses in GitHub Actions
@@ -53,8 +55,6 @@ actions_core::set_output("hash", hash);
 - **[actions-cache](./crates/actions-cache):** 🎯 Functions to cache dependencies and build outputs for GitHub Actions
 - **[actions-attest](./crates/actions-attest):** 🔏 Functions to write attestations for workflow artifacts
 
-</table>
-
 ## Installation
 
 ![Cargo](https://img.shields.io/static/v1?style=for-the-badge&message=Cargo&color=e6b047&logo=Rust&logoColor=000000&label=)
@@ -66,8 +66,6 @@ You'll probably also want to [create an `action.yml` manifest and use configure-
 ## Usage
 
 ![Rust](https://img.shields.io/static/v1?style=for-the-badge&message=Rust&color=000000&logo=Rust&logoColor=FFFFFF&label=)
-
-😵 Don't know where to start? Read the [🦀 How to write your GitHub Actions in Rust](https://dev.to/#) post. 🚀
 
 Here's an example that uses some (not all) of the `actions-*` packages in this monorepo listed above. Each package listed above ☝ also has its own readme with specific examples related to its specialty.
 
