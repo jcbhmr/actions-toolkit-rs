@@ -40,8 +40,6 @@ actions_core::set_output("hash", hash);
   | <a href="https://github.com/actions/toolkit">Official actions/toolkit</a>
 </p>
 
-😵 Don't know where to start? Read the [🦀 How to write your GitHub Actions in Rust](https://dev.to/#) post. 🚀
-
 <table align=center><td>
 
 - **[actions-core](./crates/actions-core):** ✅ Get inputs, set outputs, and other basic operations for GitHub Actions
@@ -68,6 +66,8 @@ You'll probably also want to [create an `action.yml` manifest and use configure-
 ## Usage
 
 ![Rust](https://img.shields.io/static/v1?style=for-the-badge&message=Rust&color=000000&logo=Rust&logoColor=FFFFFF&label=)
+
+😵 Don't know where to start? Read the [🦀 How to write your GitHub Actions in Rust](https://dev.to/#) post. 🚀
 
 Here's an example that uses some (not all) of the `actions-*` packages in this monorepo listed above. Each package listed above ☝ also has its own readme with specific examples related to its specialty.
 
