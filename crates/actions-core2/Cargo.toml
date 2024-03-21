@@ -1,11 +1,14 @@
 [package]
-name = "actions-core"
+name = "actions-core2"
 description = "✅ Get inputs, set outputs, and other basic operations for GitHub Actions"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jcbhmr/actions-toolkit.rs"
-homepage = "https://docs.rs/actions-core"
+homepage = "https://docs.rs/actions-core2"
+
+[lib]
+name = "actions_core"
 
 [dependencies]
 lazy_static = "1.4.0"

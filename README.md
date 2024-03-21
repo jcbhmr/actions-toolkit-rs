@@ -63,7 +63,7 @@ println!("Config hash is {hash}");
 
 😵 Don't know where to start? Read the [🦀 How to write your GitHub Actions in Rust](https://dev.to/#) post. 🚀
 
-- **[actions-core](./crates/actions-core):** ✅ Get inputs, set outputs, and other basic operations for GitHub Actions
+- **[actions-core2](./crates/actions-core2):** ✅ Get inputs, set outputs, and other basic operations for GitHub Actions
 - **[actions-exec](./crates/actions-exec):** 🏃‍♂️ Easier interface for running subprocesses in GitHub Actions
 - **[actions-glob](./crates/actions-glob):** 🍦 Glob expression library for GitHub Actions
 - **[actions-http-client](./crates/actions-http-client):** 📞 An HTTP client optimized for GitHub Actions
@@ -143,3 +143,5 @@ To get started tinkering you can clone this repository and run `cargo test` to s
 ~~This is a monorepo where each package independently manages its own version. This means that releasing the release & tag semantics are a bit wacky -- instead of a single tag like `v1.0.0` for each version of the entire project there's now N different tags, one for each `actions-*` package, each named according to `${package_name}-${package_version}` convention.~~ Nothing is currently published yet so this doesn't apply. I also want to do some research to see what the convention around monorepo tag naming is.
 
 This repository was originally named "toolkit.rs" but since the organization/user name isn't actions-related ([@jcbhmr](https://github.com/jcbhmr) instead of [@actions](https://github.com/actions)) I added a prefix to clarify the name.
+
+🆘 I'm not a very proficient Rust programmer. If you see something that could be better, please tell me! ❤️ You can open an Issue, Pull Request, or even just comment on a commit. You'll probably be granted write access. 😉
