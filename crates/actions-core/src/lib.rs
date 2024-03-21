@@ -3,19 +3,18 @@
 //! <table align=center><td>
 //!
 //! ```rs
-//! let name = core::get_input_with_options("name", core::GetInputOptions {
-//!    required: true,
+//! let name = core::get_input_with_options("name", &core::InputOptions {
+//!   required: true,
 //!   ..Default::default()
 //! })?;
-//! let favorite_color = core::get_input("favorite-color")?;
-//! core::info!("Hello {name}!");
-//! let message = format!("I like {favorite_color} too!");
-//! core::set_output("message", message);
+//! let favorite_color = core::get_input("favorite-color");
+//! core::info(format!("Hello {name}!"));
+//! core::set_output("message", format!("I like {favorite_color} too!"));
 //! ```
 //!
 //! </table>
 //!
-//! 👀 Looking for more GitHub Actions crates? Check out [the actions-toolkit.rs](https://github.com/jcbhmr/actions-toolkit.rs) project.
+//! 👀 Looking for more GitHub Actions crates? Check out [the actions-toolkit.rs project](https://github.com/jcbhmr/actions-toolkit.rs).
 //!
 //! ## Installation
 //!
@@ -61,6 +60,16 @@
 //! This project is part of the [actions-toolkit.rs](https://github.com/jcbhmr/actions-toolkit.rs) project.
 //!
 //! 🆘 I'm not a very proficient Rust programmer. If you see something that could be better, please tell me! ❤️ You can open an Issue, Pull Request, or even just comment on a commit. You'll probably be granted write access. 😉
+//!
+//! Todo list:
+//!
+//! - [x] Replicate the public API surface from [@actions/core](https://www.npmjs.com/package/@actions/core). Falsey string behaviour included.
+//! - [ ] Decide on `get_input("name", Some(...))` vs `get_input_with_options("name", ...)` vs `get_input!("name", ...)`. Need to find existing Rust projects to see the convention.
+//! - [ ] Figure out when to use `AsRef<str>`, `&str`, `String`, `Cow<str>`, etc. for parameters and return types. I need to do some recon on existing Rust projects.
+//! - [ ] Publish this crate to crates.io. That also entails setting up GitHub Actions to publish the crate on each appropriate monorepo release.
+//! - [ ] Copy this content to the crate README.
+//! - [ ] Add examples. At least two.
+//! - [ ] Add documentation to the public API. Not just "get_input() gets the input".
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct InputOptions {
@@ -120,17 +129,17 @@ impl std::fmt::Display for AnnotationProperties<'_> {
 
 fn encode_command_property(property: &str) -> String {
     property
-        .replace("%", "%25")
-        .replace("\r", "%0D")
-        .replace("\n", "%0A")
-        .replace(":", "%3A")
-        .replace(",", "%2C")
+        .replace('%', "%25")
+        .replace('\r', "%0D")
+        .replace('\n', "%0A")
+        .replace(':', "%3A")
+        .replace(',', "%2C")
 }
 
 fn encode_command_data(data: &str) -> String {
-    data.replace("%", "%25")
-        .replace("\r", "%0D")
-        .replace("\n", "%0A")
+    data.replace('%', "%25")
+        .replace('\r', "%0D")
+        .replace('\n', "%0A")
 }
 
 pub fn export_variable(name: impl AsRef<str>, value: impl std::fmt::Display) {
@@ -186,7 +195,7 @@ pub fn get_input_with_options(
     options: &InputOptions,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let name = name.as_ref();
-    let name_env = name.replace(" ", "_").to_uppercase();
+    let name_env = name.replace(' ', "_").to_uppercase();
     let value = std::env::var(format!("INPUT_{name_env}")).unwrap_or_default();
     if options.required && value.is_empty() {
         return Err(format!("{name} is required").into());
@@ -279,11 +288,7 @@ pub fn debug(message: impl std::fmt::Display) {
 
 pub fn debug_with_properties(message: impl std::fmt::Display, properties: &AnnotationProperties) {
     let message = message.to_string();
-    println!(
-        "::debug {}::{}",
-        properties.to_string(),
-        encode_command_data(&message)
-    );
+    println!("::debug {}::{}", properties, encode_command_data(&message));
 }
 
 pub fn error(message: impl std::fmt::Display) {
@@ -292,11 +297,7 @@ pub fn error(message: impl std::fmt::Display) {
 
 pub fn error_with_properties(message: impl std::fmt::Display, properties: &AnnotationProperties) {
     let message = message.to_string();
-    println!(
-        "::error {}::{}",
-        properties.to_string(),
-        encode_command_data(&message)
-    );
+    println!("::error {}::{}", properties, encode_command_data(&message));
 }
 
 pub fn warning(message: impl std::fmt::Display) {
@@ -307,7 +308,7 @@ pub fn warning_with_properties(message: impl std::fmt::Display, properties: &Ann
     let message = message.to_string();
     println!(
         "::warning {}::{}",
-        properties.to_string(),
+        properties,
         encode_command_data(&message)
     );
 }
@@ -318,11 +319,7 @@ pub fn notice(message: impl std::fmt::Display) {
 
 pub fn notice_with_properties(message: impl std::fmt::Display, properties: &AnnotationProperties) {
     let message = message.to_string();
-    println!(
-        "::notice {}::{}",
-        properties,
-        encode_command_data(&message)
-    );
+    println!("::notice {}::{}", properties, encode_command_data(&message));
 }
 
 pub fn info(message: impl std::fmt::Display) {
@@ -630,7 +627,7 @@ impl Summary {
         };
         for item in items {
             let item = item.as_ref().to_string();
-            let mut li = dom::HtmlElement::with_children("li", &[dom::Node::String(item)]);
+            let li = dom::HtmlElement::with_children("li", &[dom::Node::String(item)]);
             ul_or_ol.child_nodes.push(dom::Node::HtmlElement(li));
         }
         self.buffer.push_str(&ul_or_ol.to_string());
@@ -685,8 +682,7 @@ impl Summary {
         let label = label.as_ref();
         let content = content.as_ref();
         let mut details = dom::HtmlElement::new("details");
-        let mut summary =
-            dom::HtmlElement::with_children("summary", [dom::Node::String(label.into())]);
+        let summary = dom::HtmlElement::with_children("summary", [dom::Node::String(label.into())]);
         details.child_nodes.push(dom::Node::HtmlElement(summary));
         details.child_nodes.push(dom::Node::String(content.into()));
         self.buffer.push_str(&details.to_string());
