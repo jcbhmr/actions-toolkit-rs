@@ -59,6 +59,9 @@
 //! ![Docs.rs](https://img.shields.io/static/v1?style=for-the-badge&message=Docs.rs&color=000000&logo=Docs.rs&logoColor=FFFFFF&label=)
 //!
 //! This project is part of the [actions-toolkit.rs](https://github.com/jcbhmr/actions-toolkit.rs) project.
+//!
+//! 🆘 I'm not a very proficient Rust programmer. If you see something that could be better, please tell me! ❤️ You can open an Issue, Pull Request, or even just comment on a commit. You'll probably be granted write access. 😉
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct InputOptions {
     pub required: bool,
@@ -90,8 +93,8 @@ pub struct AnnotationProperties<'a> {
     pub end_column: u32,
 }
 
-impl AnnotationProperties<'_> {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for AnnotationProperties<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut properties = Vec::new();
         if !self.title.is_empty() {
             properties.push(format!("title={}", encode_command_property(self.title)));
@@ -111,7 +114,7 @@ impl AnnotationProperties<'_> {
         if self.end_column != 0 {
             properties.push(format!("endCol={}", self.end_column));
         }
-        properties.join(",")
+        write!(f, "{}", properties.join(","))
     }
 }
 
@@ -125,8 +128,7 @@ fn encode_command_property(property: &str) -> String {
 }
 
 fn encode_command_data(data: &str) -> String {
-    data
-        .replace("%", "%25")
+    data.replace("%", "%25")
         .replace("\r", "%0D")
         .replace("\n", "%0A")
 }
@@ -242,7 +244,11 @@ pub fn set_output(name: impl AsRef<str>, value: impl std::fmt::Display) {
     let value = value.to_string();
     let github_output = std::env::var("GITHUB_OUTPUT").unwrap_or_default();
     if github_output.is_empty() {
-        println!("::set-output name={}::{}", encode_command_property(name), encode_command_data(&value));
+        println!(
+            "::set-output name={}::{}",
+            encode_command_property(name),
+            encode_command_data(&value)
+        );
     } else {
         let mut file = std::fs::OpenOptions::new()
             .append(true)
@@ -271,48 +277,52 @@ pub fn debug(message: impl std::fmt::Display) {
     debug_with_properties(message, &AnnotationProperties::default());
 }
 
-pub fn debug_with_properties(
-    message: impl std::fmt::Display,
-    properties: &AnnotationProperties,
-) {
+pub fn debug_with_properties(message: impl std::fmt::Display, properties: &AnnotationProperties) {
     let message = message.to_string();
-    println!("::debug {}::{}", properties.to_string(), encode_command_data(&message));
+    println!(
+        "::debug {}::{}",
+        properties.to_string(),
+        encode_command_data(&message)
+    );
 }
 
 pub fn error(message: impl std::fmt::Display) {
     error_with_properties(message, &AnnotationProperties::default());
 }
 
-pub fn error_with_properties(
-    message: impl std::fmt::Display,
-    properties: &AnnotationProperties,
-) {
+pub fn error_with_properties(message: impl std::fmt::Display, properties: &AnnotationProperties) {
     let message = message.to_string();
-    println!("::error {}::{}", properties.to_string(), encode_command_data(&message));
+    println!(
+        "::error {}::{}",
+        properties.to_string(),
+        encode_command_data(&message)
+    );
 }
 
 pub fn warning(message: impl std::fmt::Display) {
     warning_with_properties(message, &AnnotationProperties::default());
 }
 
-pub fn warning_with_properties(
-    message: impl std::fmt::Display,
-    properties: &AnnotationProperties,
-) {
+pub fn warning_with_properties(message: impl std::fmt::Display, properties: &AnnotationProperties) {
     let message = message.to_string();
-    println!("::warning {}::{}", properties.to_string(), encode_command_data(&message));
+    println!(
+        "::warning {}::{}",
+        properties.to_string(),
+        encode_command_data(&message)
+    );
 }
 
 pub fn notice(message: impl std::fmt::Display) {
     notice_with_properties(message, &AnnotationProperties::default());
 }
 
-pub fn notice_with_properties(
-    message: impl std::fmt::Display,
-    properties: &AnnotationProperties,
-) {
+pub fn notice_with_properties(message: impl std::fmt::Display, properties: &AnnotationProperties) {
     let message = message.to_string();
-    println!("::notice {}::{}", properties.to_string(), encode_command_data(&message));
+    println!(
+        "::notice {}::{}",
+        properties,
+        encode_command_data(&message)
+    );
 }
 
 pub fn info(message: impl std::fmt::Display) {
@@ -337,7 +347,7 @@ pub fn group<T, F: FnOnce() -> T>(name: impl AsRef<str>, f: F) -> T {
         }
     }
     start_group(name);
-    let _group = GroupResource{};
+    let _group = GroupResource {};
     f()
 }
 
@@ -346,7 +356,11 @@ pub fn save_state(name: impl AsRef<str>, value: impl std::fmt::Display) {
     let value = value.to_string();
     let github_state = std::env::var("GITHUB_STATE").unwrap_or_default();
     if github_state.is_empty() {
-        println!("::save-state name={}::{}", encode_command_property(name), encode_command_data(&value));
+        println!(
+            "::save-state name={}::{}",
+            encode_command_property(name),
+            encode_command_data(&value)
+        );
     } else {
         let mut file = std::fs::OpenOptions::new()
             .append(true)
@@ -367,7 +381,9 @@ pub fn get_id_token() -> Result<String, Box<dyn std::error::Error>> {
     get_id_token_with_audience("")
 }
 
-pub fn get_id_token_with_audience(audience: impl AsRef<str>) -> Result<String, Box<dyn std::error::Error>> {
+pub fn get_id_token_with_audience(
+    audience: impl AsRef<str>,
+) -> Result<String, Box<dyn std::error::Error>> {
     #[derive(serde::Deserialize)]
     struct TokenResponse {
         value: String,
@@ -385,11 +401,11 @@ pub fn get_id_token_with_audience(audience: impl AsRef<str>) -> Result<String, B
 }
 
 pub fn to_posix_path(path: &str) -> String {
-    path.replace("\\", "/")
+    path.replace('\\', "/")
 }
 
 pub fn to_win32_path(path: &str) -> String {
-    path.replace("/", "\\")
+    path.replace('/', "\\")
 }
 
 pub fn to_platform_path(path: &str) -> String {
@@ -398,6 +414,385 @@ pub fn to_platform_path(path: &str) -> String {
     } else {
         to_posix_path(path)
     }
+}
+
+pub const SUMMARY_ENV_VAR: &str = "GITHUB_STEP_SUMMARY";
+pub const SUMMARY_DOCS_URL: &str = "https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SummaryTableRowItem<'a> {
+    SummaryTableCell(SummaryTableCell<'a>),
+    String(String),
+}
+
+pub type SummaryTableRow<'a> = &'a [SummaryTableRowItem<'a>];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SummaryTableCell<'a> {
+    pub data: &'a str,
+    pub header: bool,
+    pub colspan: &'a str,
+    pub rowspan: &'a str,
+}
+
+impl Default for SummaryTableCell<'_> {
+    fn default() -> Self {
+        Self {
+            data: "",
+            header: false,
+            colspan: "1",
+            rowspan: "1",
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct SummaryImageOptions<'a> {
+    pub width: &'a str,
+    pub height: &'a str,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct SummaryWriteOptions {
+    pub overwrite: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Summary {
+    buffer: String,
+    path: String,
+}
+
+impl Default for Summary {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+mod dom {
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct HtmlElement {
+        pub tag_name: String,
+        pub attributes: std::collections::HashMap<String, String>,
+        pub child_nodes: Vec<Node>,
+    }
+
+    impl HtmlElement {
+        pub fn new(tag_name: impl AsRef<str>) -> Self {
+            Self {
+                tag_name: tag_name.as_ref().to_string(),
+                attributes: std::collections::HashMap::new(),
+                child_nodes: Vec::new(),
+            }
+        }
+
+        pub fn with_children(tag_name: impl AsRef<str>, child_nodes: impl AsRef<[Node]>) -> Self {
+            Self {
+                tag_name: tag_name.as_ref().to_string(),
+                attributes: std::collections::HashMap::new(),
+                child_nodes: child_nodes.as_ref().to_vec(),
+            }
+        }
+    }
+
+    impl std::fmt::Display for HtmlElement {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            const VOID_ELEMENTS: &[&str] = &[
+                "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+                "param", "source", "track", "wbr",
+            ];
+            write!(f, "<{}", self.tag_name)?;
+            for (key, value) in &self.attributes {
+                write!(f, " {}=\"{}\"", key, value)?;
+            }
+            if VOID_ELEMENTS.contains(&self.tag_name.as_str()) {
+                write!(f, " />")?;
+            } else {
+                write!(f, ">")?;
+                for child_node in &self.child_nodes {
+                    write!(f, "{}", child_node)?;
+                }
+                write!(f, "</{}>", self.tag_name)?;
+            }
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum Node {
+        String(String),
+        HtmlElement(HtmlElement),
+    }
+
+    impl std::fmt::Display for Node {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Node::String(string) => write!(f, "{}", string),
+                Node::HtmlElement(element) => write!(f, "{}", element),
+            }
+        }
+    }
+}
+
+impl Summary {
+    pub fn new() -> Self {
+        let path = std::env::var("GITHUB_STEP_SUMMARY").unwrap();
+        Self {
+            buffer: String::new(),
+            path,
+        }
+    }
+
+    pub fn write(&mut self) -> Result<&mut Self, Box<dyn std::error::Error>> {
+        self.write_with_options(&SummaryWriteOptions::default())
+    }
+
+    pub fn write_with_options(
+        &mut self,
+        options: &SummaryWriteOptions,
+    ) -> Result<&mut Self, Box<dyn std::error::Error>> {
+        if options.overwrite {
+            std::fs::write(&self.path, &self.buffer)?;
+        } else {
+            let mut file = std::fs::OpenOptions::new().append(true).open(&self.path)?;
+            use std::io::Write;
+            write!(file, "{}", self.buffer)?;
+        }
+        self.buffer = String::new();
+        Ok(self)
+    }
+
+    pub fn clear(&mut self) -> Result<&mut Self, Box<dyn std::error::Error>> {
+        self.buffer = String::new();
+        self.write()?;
+        Ok(self)
+    }
+
+    pub fn stringify(&self) -> String {
+        self.buffer.clone()
+    }
+
+    pub fn is_empty_buffer(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
+    pub fn empty_buffer(&mut self) -> &mut Self {
+        self.buffer = String::new();
+        self
+    }
+
+    pub fn add_raw(&mut self, text: impl AsRef<str>) -> &mut Self {
+        self.add_raw_with_add_eol(text, false);
+        self
+    }
+
+    pub fn add_raw_with_add_eol(&mut self, text: impl AsRef<str>, add_eol: bool) -> &mut Self {
+        let text = text.as_ref();
+        self.buffer.push_str(text);
+        if add_eol {
+            self.buffer.push('\n');
+        }
+        self
+    }
+
+    pub fn add_eol(&mut self) -> &mut Self {
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_code_block(&mut self, code: impl AsRef<str>) -> &mut Self {
+        self.add_code_block_with_lang(code, "");
+        self
+    }
+
+    pub fn add_code_block_with_lang(
+        &mut self,
+        code: impl AsRef<str>,
+        lang: impl AsRef<str>,
+    ) -> &mut Self {
+        let code = code.as_ref();
+        let lang = lang.as_ref();
+        self.buffer.push_str(&format!("```{lang}\n{code}\n```"));
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_list(&mut self, items: &[impl AsRef<str>]) -> &mut Self {
+        self.add_list_with_ordered(items, false);
+        self
+    }
+
+    pub fn add_list_with_ordered(&mut self, items: &[impl AsRef<str>], ordered: bool) -> &mut Self {
+        let mut ul_or_ol = if ordered {
+            dom::HtmlElement::new("ol")
+        } else {
+            dom::HtmlElement::new("ul")
+        };
+        for item in items {
+            let item = item.as_ref().to_string();
+            let mut li = dom::HtmlElement::with_children("li", &[dom::Node::String(item)]);
+            ul_or_ol.child_nodes.push(dom::Node::HtmlElement(li));
+        }
+        self.buffer.push_str(&ul_or_ol.to_string());
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_table<'a>(&mut self, rows: impl AsRef<[SummaryTableRow<'a>]>) -> &mut Self {
+        let mut table = dom::HtmlElement::new("table");
+        for row in rows.as_ref() {
+            let mut tr = dom::HtmlElement::new("tr");
+            for item in row.iter() {
+                match item {
+                    SummaryTableRowItem::String(string) => {
+                        let td = dom::HtmlElement::with_children(
+                            "td",
+                            &[dom::Node::String(string.clone())],
+                        );
+                        tr.child_nodes.push(dom::Node::HtmlElement(td));
+                    }
+                    SummaryTableRowItem::SummaryTableCell(cell) => {
+                        let mut th_or_td = if cell.header {
+                            dom::HtmlElement::new("th")
+                        } else {
+                            dom::HtmlElement::new("td")
+                        };
+                        if !cell.colspan.is_empty() {
+                            th_or_td
+                                .attributes
+                                .insert("colspan".into(), cell.colspan.to_string());
+                        }
+                        if !cell.rowspan.is_empty() {
+                            th_or_td
+                                .attributes
+                                .insert("rowspan".into(), cell.rowspan.to_string());
+                        }
+                        th_or_td
+                            .child_nodes
+                            .push(dom::Node::String(cell.data.to_string()));
+                        tr.child_nodes.push(dom::Node::HtmlElement(th_or_td));
+                    }
+                }
+            }
+            table.child_nodes.push(dom::Node::HtmlElement(tr));
+        }
+        self.buffer.push_str(&table.to_string());
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_details(&mut self, label: impl AsRef<str>, content: impl AsRef<str>) -> &mut Self {
+        let label = label.as_ref();
+        let content = content.as_ref();
+        let mut details = dom::HtmlElement::new("details");
+        let mut summary =
+            dom::HtmlElement::with_children("summary", [dom::Node::String(label.into())]);
+        details.child_nodes.push(dom::Node::HtmlElement(summary));
+        details.child_nodes.push(dom::Node::String(content.into()));
+        self.buffer.push_str(&details.to_string());
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_image(&mut self, src: impl AsRef<str>, alt: impl AsRef<str>) -> &mut Self {
+        self.add_image_with_options(src, alt, &SummaryImageOptions::default());
+        self
+    }
+
+    pub fn add_image_with_options(
+        &mut self,
+        src: impl AsRef<str>,
+        alt: impl AsRef<str>,
+        options: &SummaryImageOptions,
+    ) -> &mut Self {
+        let src = src.as_ref();
+        let alt = alt.as_ref();
+        let mut img = dom::HtmlElement::new("img");
+        img.attributes.insert("src".into(), src.into());
+        img.attributes.insert("alt".into(), alt.into());
+        if !options.width.is_empty() {
+            img.attributes.insert("width".into(), options.width.into());
+        }
+        if !options.height.is_empty() {
+            img.attributes
+                .insert("height".into(), options.height.into());
+        }
+        self.buffer.push_str(&img.to_string());
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_heading(&mut self, text: impl AsRef<str>) -> &mut Self {
+        self.add_heading_with_level(text, 1);
+        self
+    }
+
+    pub fn add_heading_with_level(&mut self, text: impl AsRef<str>, level: u8) -> &mut Self {
+        let text = text.as_ref();
+        let level = if [1, 2, 3, 4, 5, 6].contains(&level) {
+            level
+        } else {
+            1
+        };
+        let mut h = dom::HtmlElement::new(format!("h{}", level));
+        h.child_nodes.push(dom::Node::String(text.into()));
+        self.buffer.push_str(&h.to_string());
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_separator(&mut self) -> &mut Self {
+        self.buffer.push_str("<hr />");
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_break(&mut self) -> &mut Self {
+        self.buffer.push_str("<br />");
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_quote(&mut self, text: impl AsRef<str>) -> &mut Self {
+        self.add_quote_with_cite(text, "");
+        self
+    }
+
+    pub fn add_quote_with_cite(
+        &mut self,
+        text: impl AsRef<str>,
+        cite: impl AsRef<str>,
+    ) -> &mut Self {
+        let text = text.as_ref();
+        let cite = cite.as_ref();
+        let mut blockquote = dom::HtmlElement::new("blockquote");
+        if !cite.is_empty() {
+            blockquote.attributes.insert("cite".into(), cite.into());
+        }
+        blockquote.child_nodes.push(dom::Node::String(text.into()));
+        self.buffer.push_str(&blockquote.to_string());
+        self.buffer.push('\n');
+        self
+    }
+
+    pub fn add_link(&mut self, text: impl AsRef<str>, href: impl AsRef<str>) -> &mut Self {
+        let text = text.as_ref();
+        let href = href.as_ref();
+        let mut a = dom::HtmlElement::new("a");
+        a.attributes.insert("href".into(), href.into());
+        a.child_nodes.push(dom::Node::String(text.into()));
+        self.buffer.push_str(&a.to_string());
+        self.buffer.push('\n');
+        self
+    }
+}
+
+lazy_static::lazy_static! {
+    static ref SUMMARY: Summary = Summary::new();
+}
+lazy_static::lazy_static! {
+    /// #[deprecated]
+    static ref MARKDOWN_SUMMARY: &'static Summary = &*SUMMARY;
 }
 
 pub mod platform {
@@ -432,9 +827,15 @@ pub mod platform {
 
     #[cfg(target_os = "linux")]
     fn get_linux_info() -> Result<(String, String), Box<dyn std::error::Error>> {
-        let name = std::process::Command::new("lsb_release").arg("-is").output()?.stdout;
+        let name = std::process::Command::new("lsb_release")
+            .arg("-is")
+            .output()?
+            .stdout;
         let name = String::from_utf8(name)?;
-        let version = std::process::Command::new("lsb_release").arg("-rs").output()?.stdout;
+        let version = std::process::Command::new("lsb_release")
+            .arg("-rs")
+            .output()?
+            .stdout;
         let version = String::from_utf8(version)?;
         Ok((name.trim().to_string(), version.trim().to_string()))
     }
@@ -498,4 +899,3 @@ pub mod platform {
         })
     }
 }
-
