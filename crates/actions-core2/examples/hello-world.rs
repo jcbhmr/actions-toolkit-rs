@@ -2,6 +2,10 @@ use actions_core as core;
 use std::error::Error;
 
 fn main() {
+    std::env::set_var("INPUT_NAME", "Alan Turing");
+    std::env::set_var("INPUT_FAVORITE-COLOR", "green");
+    std::env::set_var("GITHUB_OUTPUT", );
+
     let result = || -> Result<(), Box<dyn Error>> {
         let name = core::get_input_with_options(
             "name",

@@ -1,8 +1,12 @@
+//! ![🚧 Under construction 👷‍♂️](https://i.imgur.com/LEP2R3N.png)
+//!
 //! ✅ Get inputs, set outputs, and other basic operations for GitHub Actions
 //!
 //! <table align=center><td>
 //!
-//! ```rs
+//! ```
+//! # use actions_core as core;
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let name = core::get_input_with_options("name", &core::InputOptions {
 //!   required: true,
 //!   ..Default::default()
@@ -10,6 +14,8 @@
 //! let favorite_color = core::get_input("favorite-color");
 //! core::info(format!("Hello {name}!"));
 //! core::set_output("message", format!("I like {favorite_color} too!"));
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! </table>
@@ -28,23 +34,23 @@
 //!
 //! ![Rust](https://img.shields.io/static/v1?style=for-the-badge&message=Rust&color=000000&logo=Rust&logoColor=FFFFFF&label=)
 //!
-//! ```rs
+//! ```
 //! use actions_core as core;
 //! use std::error::Error;
 //!
 //! fn main() {
 //!   let result = || -> Result<(), Box<dyn Error>> {
-//!     let name = core::get_input_with_options("name", core::InputOptions {
-//!         required: true,
-//!         ..Default::default()
+//!     let name = core::get_input_with_options("name", &core::InputOptions {
+//!       required: true,
+//!       ..Default::default()
 //!     })?;
-//!     let favorite_color = core::get_input("favorite-color")?;
-//!     core::info!("Hello {name}!");
-//!     core::set_output("message", "Wow! Rust is awesome!");
+//!     let favorite_color = core::get_input("favorite-color");
+//!     core::info(format!("Hello {name}!"));
+//!     core::set_output("message", format!("I like {favorite_color} too!"));
 //!     Ok(())
 //!   }();
 //!   if let Err(error) = result {
-//!     core::set_failed!("{error}");
+//!     core::set_failed(error);
 //!   }
 //! }
 //! ```
@@ -783,13 +789,11 @@ impl Summary {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref SUMMARY: Summary = Summary::new();
-}
-lazy_static::lazy_static! {
-    /// #[deprecated]
-    static ref MARKDOWN_SUMMARY: &'static Summary = &*SUMMARY;
-}
+pub static SUMMARY: once_cell::sync::Lazy<std::sync::Mutex<Summary>> =
+    once_cell::sync::Lazy::new(|| std::sync::Mutex::new(Summary::default()));
+
+#[deprecated]
+pub static MARKDOWN_SUMMARY: &once_cell::sync::Lazy<std::sync::Mutex<Summary>> = &SUMMARY;
 
 pub mod platform {
     #[cfg(target_os = "windows")]
