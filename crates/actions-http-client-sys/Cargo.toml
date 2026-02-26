@@ -1,0 +1,14 @@
+[package]
+name = "actions-http-client-sys"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+# default = []
+default = ["napi", "wasm-bindgen"] # TESTING
+napi = ["dep:napi"]
+wasm-bindgen = ["dep:wasm-bindgen"]
+
+[dependencies]
+napi = { version = "3.8.2", optional = true, features = ["compat-mode", "napi9"] }
+wasm-bindgen = { version = "0.2.108", optional = true }

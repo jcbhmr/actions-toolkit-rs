@@ -1,5 +1,12 @@
 {
     "image": "mcr.microsoft.com/devcontainers/rust",
+    "features": {
+        "ghcr.io/devcontainers/features/node": {}
+    },
+    "updateContentCommand": {
+        "deno": "curl -fsSL https://deno.land/install.sh | sh -s -- --yes",
+        "bun": "curl -fsSL https://bun.com/install | bash"
+    },
     "customizations": {
         "vscode": {
             "extensions": [

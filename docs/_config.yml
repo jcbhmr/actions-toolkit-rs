@@ -1,0 +1,12 @@
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+# https://pages.github.com/versions/
+plugins:
+  - jekyll-feed
+  - jekyll-redirect-from
+# The default Markdown parser is not GitHub-flavored Markdown
+markdown: GFM
+# Remove ".html" extensions from links. GitHub Pages supports pretty URLs now.
+permalink: pretty
+title: Toolkit for GitHub Actions for Rust
+description: TODO
+# See https://github.com/just-the-docs/just-the-docs/blob/main/_config.yml for details
